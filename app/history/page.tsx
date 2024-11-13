@@ -1,6 +1,4 @@
-"use client";
-
-import { useState } from "react";
+import db from "@/lib/db";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,12 +16,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -33,6 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+// import BetValueChart from "../../components/BetValueChart";
 
 interface Bet {
   id: string;
@@ -42,81 +35,33 @@ interface Bet {
   amount: number;
   initialOdds: number;
   currentOdds: number;
-  date: string;
+  date?: string;
   value: number;
   status: "open" | "closed";
 }
 
-export default function BetHistory() {
-  const [bets, setBets] = useState<Bet[]>([
-    {
-      id: "1",
-      candidate: "Candidate A",
-      candidateImage: "/placeholder.svg?height=100&width=100",
-      type: "yes",
-      amount: 100,
-      initialOdds: 96.1,
-      currentOdds: 97.5,
-      date: "2023-05-01",
-      value: 101.46,
-      status: "open",
-    },
-    {
-      id: "2",
-      candidate: "Other",
-      candidateImage: "/placeholder.svg?height=100&width=100",
-      type: "no",
-      amount: 50,
-      initialOdds: 96.5,
-      currentOdds: 95.8,
-      date: "2023-05-02",
-      value: 50.36,
-      status: "closed",
-    },
-    {
-      id: "3",
-      candidate: "Candidate B",
-      candidateImage: "/placeholder.svg?height=100&width=100",
-      type: "yes",
-      amount: 75,
-      initialOdds: 45.0,
-      currentOdds: 48.2,
-      date: "2023-05-03",
-      value: 80.33,
-      status: "open",
-    },
-  ]);
+async function getBets(): Promise<Bet[]> {
+  // Replace this with your actual data fetching logic
+  // This could be a database query or external API call
+  // Add some sample data or fetch from your data source
+  const { rows: bets } = await db.query<Bet>(
+    "SELECT * FROM transactions ORDER BY date DESC"
+  );
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedBet, setSelectedBet] = useState<Bet | null>(null);
+  return bets;
+}
 
-  const chartData = bets.map((bet) => ({
-    date: bet.date,
-    value: bet.value,
-  }));
+export default async function BetHistory() {
+  const bets = await getBets();
+
+  // const chartData = bets.map((bet) => ({
+  //   date: bet.date,
+  //   value: bet.value,
+  // }));
 
   const totalValue = bets.reduce((sum, bet) => sum + bet.value, 0);
   const totalInvested = bets.reduce((sum, bet) => sum + bet.amount, 0);
   const profitLoss = totalValue - totalInvested;
-
-  const handleCloseBet = (bet: Bet) => {
-    setSelectedBet(bet);
-    setDialogOpen(true);
-  };
-
-  const confirmCloseBet = () => {
-    if (selectedBet) {
-      setBets((prevBets) =>
-        prevBets.map((bet) =>
-          bet.id === selectedBet.id
-            ? { ...bet, status: "closed" as const }
-            : bet
-        )
-      );
-      setDialogOpen(false);
-      setSelectedBet(null);
-    }
-  };
 
   return (
     <div className="container mx-auto p-6 space-y-8">
@@ -159,49 +104,7 @@ export default function BetHistory() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Bet Value Over Time</CardTitle>
-          <CardDescription>Total value of your bets</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ChartContainer
-            config={{
-              value: {
-                label: "Value",
-                color: "hsl(var(--chart-1))",
-              },
-            }}
-            className="h-[300px]"
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
-                <XAxis
-                  dataKey="date"
-                  stroke="#888888"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  stroke="#888888"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(value) => `$${value}`}
-                />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Line
-                  type="monotone"
-                  dataKey="value"
-                  strokeWidth={2}
-                  activeDot={{ r: 8 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        </CardContent>
-      </Card>
+      {/* <BetValueChart chartData={chartData} /> */}
 
       <Card>
         <CardHeader>
@@ -224,7 +127,6 @@ export default function BetHistory() {
                 <TableHead>Profit/Loss</TableHead>
                 <TableHead>Profit/Loss %</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -276,17 +178,6 @@ export default function BetHistory() {
                         {bet.status}
                       </Badge>
                     </TableCell>
-                    <TableCell>
-                      {bet.status === "open" && (
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleCloseBet(bet)}
-                        >
-                          Close Bet
-                        </Button>
-                      )}
-                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -294,61 +185,6 @@ export default function BetHistory() {
           </Table>
         </CardContent>
       </Card>
-
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Confirm Closing Bet</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to close this bet?
-            </DialogDescription>
-          </DialogHeader>
-          {selectedBet && (
-            <div className="grid gap-4 py-4">
-              <div className="flex items-center gap-4">
-                <Avatar className="h-20 w-20">
-                  <AvatarImage
-                    src={selectedBet.candidateImage}
-                    alt={selectedBet.candidate}
-                  />
-                  <AvatarFallback>{selectedBet.candidate[0]}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <h4 className="font-semibold">{selectedBet.candidate}</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Current odds: {selectedBet.currentOdds.toFixed(1)}¢
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Current value: ${selectedBet.value.toFixed(2)}
-                  </p>
-                  <p
-                    className={`text-sm ${
-                      selectedBet.value - selectedBet.amount >= 0
-                        ? "text-green-600"
-                        : "text-red-600"
-                    }`}
-                  >
-                    Profit/Loss: $
-                    {(selectedBet.value - selectedBet.amount).toFixed(2)} (
-                    {(
-                      ((selectedBet.value - selectedBet.amount) /
-                        selectedBet.amount) *
-                      100
-                    ).toFixed(2)}
-                    %)
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={confirmCloseBet}>Confirm</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
